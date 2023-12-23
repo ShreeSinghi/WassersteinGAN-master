@@ -10,24 +10,35 @@ import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
+from torchvision.io import read_image
 from torch.autograd import Variable
 import os
 import numpy as np
 import json
+from PIL import Image
 
 class VideoLoader(torch.utils.data.Dataset):
-    def __init__(self, folder_root, n):
-        self.folders = [os.path.join(folder_root, x) for x in os.listdir(folder_root)]
+    def __init__(self, root, n):
+        self.folders = [os.path.join(root, x) for x in os.listdir(root)]
         self.images  = [[os.path.join(folder, x) for x in os.listdir(folder)] for folder in self.folders]
-        self.folder_sizes = [len(x) for x in self.images]
-        self.cumulated_folder_sizes = np.cumsum(self.folder_sizes)
+        self.folder_sizes = [len(x)-n+1 for x in self.images]
+        self.cum_folder_sizes = np.concatenate([[0], np.cumsum(self.folder_sizes)])
         self.n = n
 
     def __getitem__(self, idx):
-        idx = np.searchsorted(self.cumulated_folder_sizes, idx, side="right")
+        
+        folder_indices = np.searchsorted(self.cum_folder_sizes, idx, side="right")
+        file_start_indices = idx-self.cum_folder_sizes[folder_indices]
+        returns = []
+        for folder_index, file_start_index in zip(folder_indices, file_start_indices):
+            images = []
+            for i in range(self.n):
+                images.append(read_image(self.images[folder_index][file_start_index+i]).type(torch.float32))
+            returns.append(torch.cat(images, dim=0))
+        return torch.stack(returns)*2/255-1
 
     def __len__(self):
-        return sum(self.folder_sizes) + len(self.folders)*(1-self.n)
+        return self.cum_folder_sizes[-1]
     
 
 import models.dcgan as dcgan
@@ -36,7 +47,6 @@ import models.mlp as mlp
 if __name__=="__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', required=True, help='cifar10 | lsun | imagenet | folder | lfw ')
     parser.add_argument('--dataroot', required=True, help='path to dataset')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=1)
     parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
@@ -78,17 +88,8 @@ if __name__=="__main__":
 
     if torch.cuda.is_available() and not opt.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
-
-    dataset = dset.ImageFolder(root=opt.dataroot,
-                            transform=transforms.Compose([
-                                transforms.Resize(opt.imageSize),
-                                transforms.CenterCrop(opt.imageSize),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                            ]))
         
-    assert dataset
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
+    dataloader = torch.utils.data.DataLoader(VideoLoader(root=opt.dataroot, n=5), batch_size=opt.batchSize,
                                             shuffle=True, num_workers=int(opt.workers))
 
     ngpu = int(opt.ngpu)
