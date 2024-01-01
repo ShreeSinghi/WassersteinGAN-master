@@ -17,7 +17,7 @@ class DCGAN_D(nn.Module):
         csize, cndf = isize / 2, ndf
 
         # Extra layers disabled
-        for t in range(0):
+        for t in range(n_extra_layers):
             main.add_module('extra-layers-{0}:{1}:conv'.format(t, cndf),
                             nn.Conv2d(cndf, cndf, 3, 1, 1, bias=False))
             main.add_module('extra-layers-{0}:{1}:batchnorm'.format(t, cndf),

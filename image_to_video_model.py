@@ -2,17 +2,6 @@ from __future__ import print_function
 import argparse
 import random
 import torch
-import torch.nn as nn
-import torch.nn.parallel
-import torch.backends.cudnn as cudnn
-import torch.optim as optim
-import torch.utils.data
-import torchvision.datasets as dset
-import torchvision.transforms as transforms
-import torchvision.utils as vutils
-from torch.autograd import Variable
-import os
-import json
 
 # python image_to_video_model.py --n_frames=5 --netG="C:\Users\singh\Downloads\WassersteinGAN-master\bruh2\netG_epoch_8.pth" --netD="C:\Users\singh\Downloads\WassersteinGAN-master\bruh2\netD_epoch_8.pth" --n_extra_layers=2 --experiment=bruh2
 #used float16 training but it was slow
